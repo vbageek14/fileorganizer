@@ -4,6 +4,7 @@ import subprocess
 import shutil
 import datetime
 import filetype
+import hashlib
 
 def is_media_file(file):
     file = filetype.guess("/Users/konstimac/Desktop/Screenshot 2024-04-12 at 1.06.56 PM.png")
@@ -145,6 +146,113 @@ def categorize_files(file, args, created_folders):
         print("Skipped " + file + ", already exists in " + directory_name)
     return created_folders
 
+def calculate_file_hash(file_path):
+    """Calculates the hash value of a file's content."""
+    hasher = hashlib.md5()
+    with open(file_path, 'rb') as file:
+        for chunk in iter(lambda: file.read(4096), b''):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def find_duplicate_files(root_folder):
+    """Traverses through the root folder and identifies duplicate files."""
+    duplicates = {}
+    for folder_path, _, file_names in os.walk(root_folder):
+        for file_name in file_names:
+            file_path = os.path.join(folder_path, file_name)
+            file_hash = calculate_file_hash(file_path)
+            if file_hash in duplicates:
+                duplicates[file_hash].append(file_path)
+            else:
+                duplicates[file_hash] = [file_path]
+    return duplicates
+
+def remove_duplicate_files(duplicates, root_folder):
+    """Removes duplicate files from the file system."""
+
+    show_duplicates = False
+    duplicates_found = False
+
+    for file_paths in duplicates.values():
+        if len(file_paths) > 1:
+            duplicates_found = True
+    if duplicates_found:        
+        user_input1 = input("Would you like to see the duplicate files before they are deleted? Input 'Yes' if so, otherwise press 'No'. To cancel operation, press any key. \n").strip().lower()
+        if user_input1 == "yes":
+            for file_paths in duplicates.values():
+                if len(file_paths) > 1:
+                    print(f"Duplicate files found:\n{file_paths}\n")
+                        
+                    for file_path in file_paths[1:]:
+                        duplicates_path = os.path.join(root_folder,"Duplicates")
+                        if os.path.exists(duplicates_path) is False:
+                            os.makedirs(duplicates_path, exist_ok=True)
+                        copy_destination = os.path.join(duplicates_path, os.path.basename(file_path))
+                        shutil.copy(file_path,copy_destination)
+                        show_duplicates = True
+
+            if show_duplicates:        
+                user_input2 = input("Duplicate files have been copied to 'Duplicates' folder. If you are okay to proceed with their deletion, enter 'Yes'. To cancel the operation, press any key. \n").strip().lower()
+                for file_paths in duplicates.values():
+                    for file_path in file_paths[1:]:
+
+                        if user_input2 == "yes":
+                            os.remove(file_path)
+                            print(f"{file_path} has been deleted.\n")
+                            
+                        else:
+                            print("Cancelling operation.")
+                            exit
+
+                if user_input2 == "yes":
+                    shutil.rmtree(duplicates_path)
+                            
+        elif user_input1 == "no":
+            os.remove(file_path)
+            print(f"{file_path} has been deleted.\n")
+        else:
+            print("Cancelling operation.")
+            exit
+    else:
+        print("No duplicates found.")
+
+def identify_live_photos_IOS(root_folder):
+    """Traverses through the root folder and identifies duplicate files."""
+    livePhotos = {}
+    for folder_path, _, file_names in os.walk(root_folder):
+        for file_name in file_names:
+            file_name_without_extension = os.path.splitext(file_name)[0]
+            file_path = os.path.join(folder_path, file_name)
+            if file_name_without_extension in livePhotos:
+                livePhotos[file_name_without_extension].append(file_path)
+            else:
+                livePhotos[file_name_without_extension] = [file_path]
+    return livePhotos
+
+def delete_live_photo_files(livePhotos):
+    live_photo_found = False
+    for file_name, file_paths in livePhotos.items():
+        if len(file_paths) > 1:
+            live_photo_found = True
+    if live_photo_found:
+        user_input = input("Live photos have been found. Would you like to delete them? (Yes/No): ").strip().lower()
+        if user_input == "yes":
+            for file_name, file_paths in livePhotos.items():
+                if len(file_paths) > 1:
+                    print(f"Live video(s) were found for '{file_name}':\n{file_paths}\n")
+                    for file_path in file_paths:
+                        _, file_extension = os.path.splitext(file_path)
+                        if file_extension.lower() in [".mov", ".aae"]:
+                            os.remove(file_path)
+                            print(f"{file_path} has been deleted.")
+        elif user_input == "no":
+            print("No files were deleted.")
+        else:
+            print("Invalid input. No files were deleted.")
+    else:
+        print("No live photos found.")
+
 
 def run_process(path, created_folders, args):
     """
@@ -166,10 +274,6 @@ def run_process(path, created_folders, args):
             delete_empty_folders(directory, created_folders)
     else:
         print("Error: Please input a valid directory.")
-    # elif (os.path.isfile(path)):
-    #     if is_media_file(path):
-    #         created_folders.update(categorize_files(path, args))
-    #         delete_empty_folders(os.path.dirname(path), created_folders)
 
 def main():
     # Parse command-line arguments
@@ -190,6 +294,14 @@ def main():
 
      # Run the file organization process
     run_process(args.target, created_folders, args)
+
+    # After organizing files, find and remove duplicates
+    duplicates = find_duplicate_files(args.target)
+    remove_duplicate_files(duplicates, args.target)
+
+    # Identify and delete live photos
+    livePhotos = identify_live_photos_IOS(args.target)
+    delete_live_photo_files(livePhotos)
 
 if __name__ == "__main__":
     main()
