@@ -7,13 +7,15 @@ import filetype
 import hashlib
 
 def is_media_file(file):
-    file = filetype.guess("/Users/konstimac/Desktop/Screenshot 2024-04-12 at 1.06.56 PM.png")
-    media_extensions = ("jpg", "jpeg", "png", "gif", "bmp",
-                        "tif", "tiff", "webp", "heif", "heic",
-                        "svg", "mp4", "mov", "avi", "wmv", "flv",
-                        "mkv", "webm", "mpg", "mpeg", "3gp")
-    if file.extension in media_extensions:
-        return True
+    if os.path.exists(file):
+        file_type = filetype.guess(file)
+        media_extensions = ("jpg", "jpeg", "png", "gif", "bmp",
+                            "tif", "tiff", "webp", "heif", "heic",
+                            "svg", "mp4", "mov", "avi", "wmv", "flv",
+                            "mkv", "webm", "mpg", "mpeg", "3gp")
+        if file_type is not None and file_type.extension in media_extensions:
+            return True
+        return False
 
 def get_exif_create_date(filepath):
     '''
@@ -54,14 +56,20 @@ def extract_year_from_file(file):
         str: The year extracted from the file name.
     '''
     year = str(file)[:4]
-    return year
+    if year != "0000":
+        return year
+    else:
+        return None
 
 def extract_month_from_file(file):
     month_num = str(file)[5:7]
-    datetime_object = datetime.datetime.strptime(month_num, "%m")
-    month_name = datetime_object.strftime("%b")
-    return month_name
-
+    if month_num != "00":
+        datetime_object = datetime.datetime.strptime(month_num, "%m")
+        month_name = datetime_object.strftime("%b")
+        return month_name
+    else:
+        return None
+    
 def delete_empty_folders(root, created_folders):
     """
     Delete empty folders within the specified root directory, excluding those listed in the set of created folders.
@@ -118,9 +126,15 @@ def categorize_files(file, args, created_folders):
     if file_date:
         if format == "year":
             # If creation date exists, determine the directory name based on the year
-            directory_name = "/".join([args.target,str(extract_year_from_file(str(file_date)))])
+            if extract_year_from_file(str(file_date)):
+                directory_name = "/".join([args.target,str(extract_year_from_file(str(file_date)))])
+            else:
+                directory_name = "/".join([args.target,"Uncategorized"])
         elif format == "year-month":
-            directory_name = "/".join([args.target,str(extract_year_from_file(str(file_date))), str(extract_month_from_file(str(file_date)))])
+            if extract_month_from_file(str(file_date)):
+                directory_name = "/".join([args.target,str(extract_year_from_file(str(file_date))), str(extract_month_from_file(str(file_date)))])
+            else:
+                directory_name = "/".join([args.target,"Uncategorized"])
         
         final_path = os.path.join(directory_name, file.split("/")[-1])
         
@@ -236,7 +250,7 @@ def delete_live_photo_files(livePhotos):
         if len(file_paths) > 1:
             live_photo_found = True
     if live_photo_found:
-        user_input = input("Live photos have been found. Would you like to delete them? (Yes/No): ").strip().lower()
+        user_input = input("Live photos have been found. Would you like to delete them? (Yes/No): \n").strip().lower()
         if user_input == "yes":
             for file_name, file_paths in livePhotos.items():
                 if len(file_paths) > 1:
@@ -268,8 +282,8 @@ def run_process(path, created_folders, args):
             directory = path
             for root, dirs, files in os.walk(directory):
                 for name in files:
-                    if is_media_file(name):
-                        file = os.path.join(root, name)
+                    file = os.path.join(root, name)
+                    if is_media_file(file):
                         created_folders.update(categorize_files(file, args, created_folders))
             delete_empty_folders(directory, created_folders)
     else:
