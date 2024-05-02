@@ -211,6 +211,7 @@ def compute_hash_value(file_path):
 
     """
     Computes the MD5 hash value of a file.  
+    
     This function has been obtained from the following project on GitHub that is under MIT license provided above: 
     https://github.com/MK-Ware/Duplicate-file-remover/tree/master 
        
@@ -233,8 +234,9 @@ def compute_hash_value(file_path):
 def find_duplicate_files(root_folder):
     
     """ 
-    
+
     Finds duplicate files within a given root folder. 
+
     This function has been adapted from the following project on GitHub that is under MIT license provided above: 
     https://github.com/MK-Ware/Duplicate-file-remover/tree/master 
 
