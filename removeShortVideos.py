@@ -56,7 +56,7 @@ def delete_short_videos(root_folder, threshold):
                 # Converts the duration value to a floating-point number if needed
                 duration_time = float(exif_duration)
                 
-                if duration_time < threshold:
+                if duration_time <= threshold:
                     short_videos_found = True
                     os.remove(file_path)
                     print(f"{file_path} has been deleted.\n")

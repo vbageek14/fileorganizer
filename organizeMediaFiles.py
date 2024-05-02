@@ -95,7 +95,7 @@ def delete_empty_folders(root, created_folders):
 
     # Iterates over directories in the root directory
     for dirpath, dirnames, filenames in os.walk(root, topdown=False):
-        excepted_folders = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec", "Uncategorized"]
+        excepted_folders = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Uncategorized"]
 
         # Regular expression pattern to match four-digit numbers (years)
         year_pattern = re.compile(r'^\d{4}$')
@@ -114,8 +114,7 @@ def delete_empty_folders(root, created_folders):
                 try:
                     user_input = input("If you still would like to proceed, enter 'Yes' to force delete. Enter any other key to cancel: \n").strip().lower()
                     if user_input == "yes":
-                        print(f"Full Path: {full_path}")
-                        print(f"Deleting folder {dirname}")
+                        print(f"Deleting folder {dirname}\n")
 
                         # Force deletes the folder and its contents
                         shutil.rmtree(full_path)
@@ -420,6 +419,7 @@ def identify_live_photos_IOS(root_folder):
 
             # Stores file paths based on creation date (if available)
             if exif_data is not None:
+                createdate = None
                 if isinstance(exif_data, tuple):
                     createdate, _ = exif_data
 
