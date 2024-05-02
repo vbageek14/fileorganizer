@@ -5,41 +5,38 @@ import shutil
 import datetime
 import filetype
 import hashlib
+import re
 
 def is_media_file(file):
     if os.path.exists(file):
         file_type = filetype.guess(file)
+
+        # Defines a tuple of media file extensions
         media_extensions = ("jpg", "jpeg", "png", "gif", "bmp",
                             "tif", "tiff", "webp", "heif", "heic",
                             "svg", "mp4", "mov", "avi", "wmv", "flv",
                             "mkv", "webm", "mpg", "mpeg", "3gp")
+        
         if file_type is not None and file_type.extension in media_extensions:
             return True
         return False
 
 def get_exif_create_date_and_extension(filepath, print_output = True):
-    '''
-    Extracts the creation date of a file using exiftool.
 
-    Args:
-        filepath (str): The path to the file.
-        
-    Returns:
-        str: The creation date of the file, or None if no EXIF metadata exists or an error occurs.
+    """ Extracts the creation date of a file using exiftool. """
 
-    '''
     try:
         result = subprocess.run(['exiftool', '-CreateDate', '-mimetype', filepath], capture_output=True, text=True)
         if result.returncode == 0:
 
-            # Split the output by newlines to separate creation date and file extension
+            # Splits the output by newlines to separate creation date and file extension
             output_lines = result.stdout.strip().split('\n')
             
             if output_lines:
                 create_date = None
                 file_extension = None
 
-                # Loop through each line to find creation date and file extension
+                # Loops through each line to find creation date and file extension
                 for line in output_lines:
                     if line.startswith("Create Date"):
                         create_date = line.strip().split(': ')[-1]
@@ -48,7 +45,7 @@ def get_exif_create_date_and_extension(filepath, print_output = True):
                         if file_extension == "quicktime":
                             file_extension = "mov"
                 
-                # Check if both creation date and file extension exist
+                # Checks if both creation date and file extension exist
                 if create_date and file_extension:
                     return create_date, file_extension
                 elif create_date and not file_extension:
@@ -74,14 +71,9 @@ def get_exif_create_date_and_extension(filepath, print_output = True):
 
 
 def extract_year_from_file(file):
-    '''
-    Extracts the year from the file name.
 
-    Args:
-        file (str): The file name.
-    Returns:
-        str: The year extracted from the file name.
-    '''
+    """ Extracts the year from the file name. """
+
     year = str(file)[:4]
     if year != "0000":
         return year
@@ -98,21 +90,22 @@ def extract_month_from_file(file):
         return None
     
 def delete_empty_folders(root, created_folders):
-    """
-    Delete empty folders within the specified root directory, excluding those listed in the set of created folders.
 
-    Args:
-        root (str): The root directory to start deleting empty folders from.
-        created_folders (set): A set containing names of folders created during the process.
-    """
+    """ Delete empty folders within the specified root directory, excluding those listed in the set of created folders. """
 
-    # Iterate over directories in the root directory
+    # Iterates over directories in the root directory
     for dirpath, dirnames, filenames in os.walk(root, topdown=False):
-        # Exclude directories that are in the created_folders set
-        dirnames[:] = [dirname for dirname in dirnames if dirname not in created_folders]
+        excepted_folders = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec", "Uncategorized"]
+
+        # Regular expression pattern to match four-digit numbers (years)
+        year_pattern = re.compile(r'^\d{4}$')
+
+        # Excludes directories that are in the created_folders set
+        dirnames[:] = [dirname for dirname in dirnames if dirname not in created_folders and dirname not in excepted_folders and not year_pattern.match(dirname)]
         for dirname in dirnames:
             full_path = os.path.join(dirpath, dirname)
-            # Check if the directory is empty and if so, delete it
+            
+            # Checks if the directory is empty and if so, deletes it
             if not os.listdir(full_path): 
                 print(f"Deleting folder {dirname}\n")
                 os.rmdir(full_path)
@@ -123,31 +116,21 @@ def delete_empty_folders(root, created_folders):
                     if user_input == "yes":
                         print(f"Full Path: {full_path}")
                         print(f"Deleting folder {dirname}")
-                        # Force delete the folder and its contents
+
+                        # Force deletes the folder and its contents
                         shutil.rmtree(full_path)
                     else:
-                        print("Folder was not deleted")
+                        print("Folder was not deleted.\n")
                 except Exception as e:
                     print(f"An error occurred while trying to delete the folder: {e}")
 
 def categorize_files(file, args, created_folders):
 
-    """
-    Categorize the file into folders based on its creation year, or move it to an 'Uncategorized' folder if creation date metadata is not available.
-
-    Args:
-        file (str): The path to the file being categorized.
-        args: Arguments parsed from the command line.
-        created_folders (set): A set containing names of folders created during the process.
-
-    Returns:
-        set: Updated set of created folders after categorization.
-
-    """
+    """ Categorizes the file into folders based on its creation year, or moves it to an 'Uncategorized' folder if creation date metadata is not available. """
 
     format  = args.format
 
-    # Extract creation date metadata from the file
+    # Extracts creation date metadata from the file
     file_data = get_exif_create_date_and_extension(file)
 
     if file_data is not None:
@@ -163,7 +146,7 @@ def categorize_files(file, args, created_folders):
     
         if file_date:
             if format == "year":
-                # If creation date exists, determine the directory name based on the year
+                # If creation date exists, determines the directory name based on the year
                 if extract_year_from_file(str(file_date)):
                     directory_name = "/".join([args.target,str(extract_year_from_file(str(file_date)))])
                 else:
@@ -177,7 +160,7 @@ def categorize_files(file, args, created_folders):
             final_path = os.path.join(directory_name, file.split("/")[-1])
             
         else:
-            # If no creation date metadata exists, move the file to the 'Uncategorized' folder
+            # If no creation date metadata exists, moves the file to the 'Uncategorized' folder
             directory_name = "/".join([args.target,"Uncategorized"])
             final_path = os.path.join(directory_name,file.split("/")[-1])
     else:
@@ -186,7 +169,7 @@ def categorize_files(file, args, created_folders):
         final_path = os.path.join(directory_name,file.split("/")[-1])
 
     if os.path.exists(directory_name) is False:
-        # Create the directory if it doesn't exist and update created_folders set
+        # Creates the directory if it doesn't exist and update created_folders set
         os.makedirs(directory_name, exist_ok=True)
         components = directory_name.split("/")
         for component in components:
@@ -194,91 +177,187 @@ def categorize_files(file, args, created_folders):
         print("Folder " + directory_name + " created.")
 
     if os.path.exists(final_path) is False:
-         # Move the file to the final path or skip if it already exists
+         # Moves the file to the final path or skips if it already exists
         print("Moving " + file + " to " + final_path)
         os.rename(file, final_path)
     else:
         print("Skipped " + file + ", already exists in " + directory_name)
     return created_folders
 
-def calculate_file_hash(file_path):
-    """Calculates the hash value of a file's content."""
-    hasher = hashlib.md5()
-    with open(file_path, 'rb') as file:
-        for chunk in iter(lambda: file.read(4096), b''):
-            hasher.update(chunk)
-    return hasher.hexdigest()
+def compute_hash_value(file_path):
+
+    """ 
+    Copyright (c) 2017 Monro Coury
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the 'Software'), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+    """
+
+    """
+    Computes the MD5 hash value of a file.  
+    This function has been obtained from the following project on GitHub that is under MIT license provided above: 
+    https://github.com/MK-Ware/Duplicate-file-remover/tree/master 
+       
+    """
+
+    # Creates an MD5 hash object
+    md5Hash = hashlib.md5()
+
+     # Opens the file in binary mode
+    with open(file_path, 'rb') as f:
+        # Iterate over the file in chunks of 4096 bytes
+        for chunk in iter(lambda: f.read(4096), b""):
+            # Updates the MD5 hash object with the data from the current chunk
+            md5Hash.update(chunk)
+
+    # Returns the hexadecimal representation of the hash value
+    return md5Hash.hexdigest()
 
 
 def find_duplicate_files(root_folder):
-    """Traverses through the root folder and identifies duplicate files."""
-    duplicates = {}
+    
+    """ 
+    
+    Finds duplicate files within a given root folder. 
+    This function has been adapted from the following project on GitHub that is under MIT license provided above: 
+    https://github.com/MK-Ware/Duplicate-file-remover/tree/master 
+
+    """
+
+    dups = {}
+
+    # Recursively traverses the root folder and its subdirectories
     for folder_path, _, file_names in os.walk(root_folder):
         for file_name in file_names:
             file_path = os.path.join(folder_path, file_name)
-            file_hash = calculate_file_hash(file_path)
-            if file_hash in duplicates:
-                duplicates[file_hash].append(file_path)
+            # Computes the hash value of the current file
+            file_hash = compute_hash_value(file_path)
+            if file_hash in dups:
+                dups[file_hash].append(file_path)
             else:
-                duplicates[file_hash] = [file_path]
-    return duplicates
+                dups[file_hash] = [file_path]
+    return dups
 
 def find_and_fix_file_extension_mismatches(root_folder):
+    """Finds and fixes file extension mismatches within a given root folder."""
+
     extension_mismatches_found = False
 
+    # Recursively traverses the root folder and its subdirectories
     for folder_path, _, file_names in os.walk(root_folder):
         for file_name in file_names:
-            file_path = os.path.join(folder_path, file_name)
-            file_name_extension = file_name.strip().split(".")[1].upper()
-            if file_name_extension == "JPG":
-                file_name_extension = "JPEG"
-            exif_data = get_exif_create_date_and_extension(file_path, print_output = False)
+            # Checks that the file does not have the ".aae" extension
+            if not file_name.lower().endswith(".aae"):
+                file_path = os.path.join(folder_path, file_name)
+                file_name_extension = file_name.strip().split(".")[1].upper()
+                if file_name_extension == "JPG":
+                    file_name_extension = "JPEG"
 
-            if exif_data is not None:
-                if isinstance(exif_data, tuple):
-                    _, file_exif_extension = exif_data
+                # Gets EXIF data including creation date and extension
+                exif_data = get_exif_create_date_and_extension(file_path, print_output = False)
+
+                if exif_data is not None:
+                    if isinstance(exif_data, tuple):
+                        _, file_exif_extension = exif_data
+                        
+                    elif isinstance(exif_data, str):
+                        if ":" not in exif_data:
+                            file_exif_extension = exif_data
                     
-                elif isinstance(exif_data, str):
-                    if ":" not in exif_data:
-                        file_exif_extension = exif_data
-                
-                if file_name_extension != file_exif_extension.upper():
-                    if not extension_mismatches_found:
-                        extension_mismatches_found = True
-                        user_input = input("File(s) with extension mismatches have been identified. Would you like to correct them? (Yes/No): \n").strip().lower()
-                        if user_input == "no":
-                            print("No files were deleted.\n")
-                        elif user_input != "yes":
-                            print("Invalid input. No files were deleted.\n")
-                    file_name_without_extension = os.path.splitext(file_name)[0]
-                    final_path = os.path.join(folder_path, file_name_without_extension) + "." + file_exif_extension.upper()
-                    try:
-                        # Rename the file
-                        os.rename(file_path, final_path)
-                        print(f"Renamed: {file_path} -> {final_path}\n")
-                    except Exception as e:
-                        print(f"Error renaming {file_path}: {e}")
+                    # Compares file name extension with EXIF extension
+                    if file_name_extension != file_exif_extension.upper():
+                        if not extension_mismatches_found:
+                            extension_mismatches_found = True
+                            # Asks user if they want to correct extension mismatches
+                            user_input = input("File(s) with extension mismatches have been identified. Would you like to correct them? (Yes/No): \n").strip().lower()
+                            if user_input == "no":
+                                print("No files were deleted.\n")
+                            elif user_input != "yes":
+                                print("Invalid input. No files were deleted.\n")
+                        
+                        # Generates the final path with corrected extension
+                        file_name_without_extension = os.path.splitext(file_name)[0]
+                        final_path = os.path.join(folder_path, file_name_without_extension) + "." + file_exif_extension.upper()
+                        try:
+                            # Renames the file
+                            os.rename(file_path, final_path)
+                            print(f"Renamed: {file_path} -> {final_path}\n")
+                        except Exception as e:
+                            print(f"Error renaming {file_path}: {e}")
 
     if not extension_mismatches_found:
         print("No file(s) with extension mismatches were found.")
+
+def remove_aae_files(root_folder):
+    """ Remove .aae files within a given root folder."""
+
+    aae_files_found = False
+
+    # Recursively traverses the root folder and its subdirectories
+    for folder_path, _, file_names in os.walk(root_folder):
+        for file_name in file_names:
+            # Checks if the file has the ".aae" extension
+            if file_name.lower().endswith(".aae"):
+                aae_files_found = True
+                break
+        if aae_files_found:
+            break
+
+    if aae_files_found:
+        # Asks user if they want to delete .aae files
+        user_input = input("AAE files have been found. Would you like to delete them? (Yes/No):\n").strip().lower()
+        if user_input == "yes":
+            # Recursively traverses the root folder and its subdirectories again
+            for folder_path, _, file_names in os.walk(root_folder):
+                for file_name in file_names:
+                    # Checks if the file has the ".aae" extension
+                    if file_name.lower().endswith(".aae"):
+                        file_path = os.path.join(folder_path, file_name)
+                        # Deletes the .aae file
+                        os.remove(file_path)
+                        print(f"{file_path} has been deleted.\n")
+        else:
+            print("No AAE files have been deleted.\n")
+    else:
+        print("No AAE files found in the specified folder.\n")
     
 
 def remove_duplicate_files(duplicates, root_folder):
-    """Removes duplicate files from the file system."""
+    """Removes duplicate files withi a given root folder."""
 
     show_duplicates = False
     duplicates_found = False
 
+     # Checks if duplicates are found
     for file_paths in duplicates.values():
         if len(file_paths) > 1:
             duplicates_found = True
-    if duplicates_found:        
+
+    if duplicates_found: 
+        # Prompts user to see duplicate files before deletion       
         user_input1 = input("Duplicate files have been found. Would you like to see the files before they are deleted? (Yes/No):\n").strip().lower()
         if user_input1 == "yes":
+            # Iterate over duplicate file paths
             for file_paths in duplicates.values():
                 if len(file_paths) > 1:
                     print(f"Duplicate files found:\n{file_paths}\n")
-                        
+                    # Copies duplicate files to a separate folder
                     for file_path in file_paths[1:]:
                         duplicates_path = os.path.join(root_folder,"Duplicates")
                         if os.path.exists(duplicates_path) is False:
@@ -288,14 +367,14 @@ def remove_duplicate_files(duplicates, root_folder):
                         show_duplicates = True
 
             if show_duplicates:        
+                # Prompts user to confirm deletion after copying duplicates
                 user_input2 = input("Duplicate files have been copied to 'Duplicates' folder. If you are okay to proceed with their deletion, enter 'Yes'. To cancel the operation, press any key. \n\n").strip().lower()
                 for file_paths in duplicates.values():
                     for file_path in file_paths[1:]:
-
+                        # Deletes duplicate files if user confirms
                         if user_input2 == "yes":
                             os.remove(file_path)
                             print(f"{file_path} has been deleted.\n")
-                            
                         else:
                             print("Cancelling operation.")
                             exit
@@ -304,6 +383,7 @@ def remove_duplicate_files(duplicates, root_folder):
                     shutil.rmtree(duplicates_path)
                             
         elif user_input1 == "no":
+            # Deletes duplicate files without displaying them
             for file_paths in duplicates.values():
                 for file_path in file_paths[1:]:
                     os.remove(file_path)
@@ -312,31 +392,40 @@ def remove_duplicate_files(duplicates, root_folder):
             print("Cancelling operation.")
             exit
     else:
-        print("No duplicates found.")
+        print("No duplicates found.\n")
 
 def identify_live_photos_IOS(root_folder):
-    """Traverses through the root folder and identifies duplicate files."""
+    
+    """ Traverses through the root folder and identifies live photos based on iOS file naming conventions. """
+    
+    # Initializes dictionaries to store live photo information
     livePhotos_filename = {}
     livePhotos_createdate = {}
+
+    # Recursively traverses the root folder and its subdirectories
     for folder_path, _, file_names in os.walk(root_folder):
         for file_name in file_names:
             file_path = os.path.join(folder_path, file_name)
             file_name_without_extension = os.path.splitext(file_name)[0]
+             # Gets EXIF data including creation date and extension
             exif_data = get_exif_create_date_and_extension(file_path, print_output = False)
 
+            # Stores file paths based on filename
             if file_name_without_extension in livePhotos_filename:
                 livePhotos_filename[file_name_without_extension].append(file_path)
             else:
                 livePhotos_filename[file_name_without_extension] = [file_path]
 
+            # Stores file paths based on creation date (if available)
             if exif_data is not None:
                 if isinstance(exif_data, tuple):
                     createdate, _ = exif_data
 
-            elif isinstance(exif_data, str):
-                if ":" in exif_data:
-                    createdate = exif_data
+                elif isinstance(exif_data, str):
+                    if ":" in exif_data:
+                        createdate = exif_data
 
+                # Adds file paths to dictionary based on creation date
                 if createdate:
                     if createdate in livePhotos_createdate:
                         livePhotos_createdate[createdate].append(file_path)
@@ -346,50 +435,59 @@ def identify_live_photos_IOS(root_folder):
     return livePhotos_filename, livePhotos_createdate
 
 def delete_live_photo_files(livePhotos_filename, livePhotos_createdate):
+
+    """ Deletes live photo files (".mov" or ".mp4") based on given dictionaries containing file paths. """
+    
     live_photo_found = False
 
+     # Checks if live photo files are found based on filenames
     for file_paths in livePhotos_filename.values():
-        if len(file_paths) > 1:
+        if len(file_paths) > 1 and (".mov" in file_paths or ".mp4" in file_paths):
             live_photo_found = True
             break
 
+    # If live photo files are not found based on filenames, checks based on creation dates
     if not live_photo_found:
         for file_paths in livePhotos_createdate.values():
-            if len(file_paths) > 1:
+            if len(file_paths) > 1 and (".mov" in file_paths or ".mp4" in file_paths):
                 live_photo_found = True
                 break
 
+    # If live photo files are found, prompts user to confirm deletion           
     if live_photo_found:
         user_input = input("Live photos have been found. Would you like to delete them? (Yes/No): \n").strip().lower()
         if user_input == "yes":
             for file_name, file_paths in livePhotos_filename.items():
                 if len(file_paths) > 1:
+                    # If multiple file paths exist for the same filename, iterates over each path
                     for file_path in file_paths:
                         if os.path.exists(file_path):
                             _, file_extension = os.path.splitext(file_path)
-                            if file_extension.lower() in [".mov", ".aae"]:
+                            if file_extension.lower() in [".mov", ".mp4"]:
+                                # Deletes the file if it meets the criteria
                                 print(f"Live video(s) were found for '{file_name}':\n{file_paths}\n")
                                 os.remove(file_path)
                                 print(f"{file_path} has been deleted.\n")
             
+            # Iterates over creation dates and file paths
             for createdate, file_paths in livePhotos_createdate.items():
                 if len(file_paths) > 1:
 
-                    # Check if there are non-mov/aae files
-                    other_files = [file_path for file_path in file_paths if os.path.splitext(file_path)[1].lower() not in [".mov", ".aae"]]
+                    # Checks if there are non-mov/mp4 files
+                    other_files = [file_path for file_path in file_paths if os.path.splitext(file_path)[1].lower() not in [".mov", ".mp4"]]
                     
                     if other_files:
-                        # Delete all mov/aae files
-                        mov_aae_files = [file_path for file_path in file_paths if os.path.splitext(file_path)[1].lower() in [".mov", ".aae"]]
-                        for file_path in mov_aae_files:
+                        # If non-mov/mp4 files exist, deletes all mov/mp4 files
+                        mov_mp4_files = [file_path for file_path in file_paths if os.path.splitext(file_path)[1].lower() in [".mov", ".mp4"]]
+                        for file_path in mov_mp4_files:
                             if os.path.exists(file_path):
                                 print(f"Multiple files were found with creation date '{createdate}':\n{file_paths}\n")
                                 os.remove(file_path)
                                 print(f"{file_path} has been deleted.\n")
                     else:
-                        # Keep one mov/aae file and delete the rest
-                        mov_aae_files = [file_path for file_path in file_paths if os.path.splitext(file_path)[1].lower() in [".mov", ".aae"]]
-                        for file_path in mov_aae_files[:-1]:
+                        # If only mov/mp4 files exist, keeps one and deletes the rest
+                        mov_mp4_files = [file_path for file_path in file_paths if os.path.splitext(file_path)[1].lower() in [".mov", ".mp4"]]
+                        for file_path in mov_mp4_files[:-1]:
                             print(f"Multiple files were found with creation date '{createdate}':\n{file_paths}\n")
                             os.remove(file_path)
                             print(f"{file_path} has been deleted.\n")
@@ -399,21 +497,17 @@ def delete_live_photo_files(livePhotos_filename, livePhotos_createdate):
         else:
             print("Invalid input. No files were deleted.")
     else:
-        print("No live photos found.")
+        print("No live photos found.\n")
 
 
 def run_process(path, created_folders, args):
-    """
-    Process the target path (either a directory or a file), organizing media files into folders by their creation year.
 
-    Args:
-        path (str): The target directory or file path.
-        created_folders (set): A set to keep track of folders created during the process.
-        args: Arguments parsed from the command line.
+    """ Processes the target path (either a directory or a file), organizing media files into folders by their creation year. """
 
-    """
     if (os.path.isdir(path)):
             directory = path
+
+            # Recursively traverses the root folder and its subdirectories
             for root, dirs, files in os.walk(directory):
                 for name in files:
                     file = os.path.join(root, name)
@@ -424,7 +518,7 @@ def run_process(path, created_folders, args):
         print("Error: Please input a valid directory.")
 
 def main():
-    # Parse command-line arguments
+    # Parses command-line arguments
     parser = argparse.ArgumentParser(
         description="Organize pictures and videos into folders by year")
     parser.add_argument(
@@ -437,23 +531,27 @@ def main():
         
     args = parser.parse_args()
 
-    # Initialize a set to keep track of created folders
+    # Initializes a set to keep track of created folders
     created_folders = set()
 
-     # Run the file organization process
+     # Runs the file organization process
     run_process(args.target, created_folders, args)
 
-    # After organizing files, find and remove duplicates
+    # After organizing files, finds and removes duplicates
     print("Searching for duplicate files...\n")
     duplicates = find_duplicate_files(args.target)
     remove_duplicate_files(duplicates, args.target)
 
-    # Identify and delete live photos
+    # Identifies and deletes live photos
     print("Searching for live photo files...\n")
     livePhotos_filename, livePhotos_createdate = identify_live_photos_IOS(args.target)
     delete_live_photo_files(livePhotos_filename, livePhotos_createdate)
 
-    # Identify and correct file extension mismatches
+    # Identifies and deletes "aae" files
+    print("Searching for '.aae' files...\n")
+    remove_aae_files(args.target)
+
+    # Identifies and corrects file extension mismatches
     print("Searching for files with extension mismatches...\n")
     find_and_fix_file_extension_mismatches(args.target)
 
