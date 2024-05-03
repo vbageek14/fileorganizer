@@ -406,7 +406,7 @@ def identify_live_photos_IOS(root_folder):
     # Recursively traverses the root folder and its subdirectories
     for folder_path, _, file_names in os.walk(root_folder):
         for file_name in file_names:
-            file_path = os.path.join(folder_path, file_name)
+            file_path = os.path.join(folder_path, file_name).lower()
             file_name_without_extension = os.path.splitext(file_name)[0]
              # Gets EXIF data including creation date and extension
             exif_data = get_exif_create_date_and_extension(file_path, print_output = False)
@@ -444,16 +444,20 @@ def delete_live_photo_files(livePhotos_filename, livePhotos_createdate):
 
      # Checks if live photo files are found based on filenames
     for file_paths in livePhotos_filename.values():
-        if len(file_paths) > 1 and (".mov" in file_paths or ".mp4" in file_paths):
-            live_photo_found = True
-            break
+        if len(file_paths) > 1:
+            for file_path in file_paths:
+                if (".mov" in file_path or ".mp4" in file_path):
+                    live_photo_found = True
+                    break
 
     # If live photo files are not found based on filenames, checks based on creation dates
     if not live_photo_found:
         for file_paths in livePhotos_createdate.values():
-            if len(file_paths) > 1 and (".mov" in file_paths or ".mp4" in file_paths):
-                live_photo_found = True
-                break
+            if len(file_paths) > 1:
+                for file_path in file_paths:
+                    if (".mov" in file_path or ".mp4" in file_path):
+                        live_photo_found = True
+                        break
 
     # If live photo files are found, prompts user to confirm deletion           
     if live_photo_found:
