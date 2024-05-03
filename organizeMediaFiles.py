@@ -150,7 +150,7 @@ def categorize_files(file, args, created_folders):
                     directory_name = "/".join([args.target,str(extract_year_from_file(str(file_date)))])
                 else:
                     directory_name = "/".join([args.target,"Uncategorized"])
-            elif format == "year-month":
+            elif format == "month":
                 if extract_month_from_file(str(file_date)):
                     directory_name = "/".join([args.target,str(extract_year_from_file(str(file_date))), str(extract_month_from_file(str(file_date)))])
                 else:
