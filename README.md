@@ -13,7 +13,7 @@ This script accomplishes the following tasks:
 Usage example:
 ```bash
 python organizeMediaFiles.py root_folder -f "month"
-```bash
+```
 
 2. **Duplicate File Removal:**
    - Looks for and deletes duplicate files by computing an MD5 hash value of the file.
