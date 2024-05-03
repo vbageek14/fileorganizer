@@ -10,7 +10,6 @@ This script accomplishes the following tasks:
    - Categorizes media files under the root directory by either year or month of creation date by accessing the Create Date property of the command-line tool ExifTool. If there's no such metadata, the file is moved to an "Uncategorized" folder.
    - Default categorization method is "year," but you can change it to "month" using the `-f` flag.
 
-Usage example:
 ```bash
 python organizeMediaFiles.py root_folder -f "month"
 ```
